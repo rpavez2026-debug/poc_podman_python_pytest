@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía QA Podman Pytest</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --text: #1d1f23;
+    --muted: #5d636e;
+    --border: #e2e3e0;
+    --accent: #2f6fd6;
+    --accent-soft: #e8f0fd;
+    --code-bg: #f1f2ef;
+    --pre-bg: #1e2127;
+    --pre-text: #e3e6eb;
+    --ok: #1f8a4c;
+    --warn: #b26a00;
+    --err: #c0392b;
+    --note-bg: #fff6e5;
+    --note-border: #f0c36d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171b;
+      --surface: #1c1f24;
+      --text: #e6e8eb;
+      --muted: #9aa1ac;
+      --border: #2d3138;
+      --accent: #6ea2ff;
+      --accent-soft: #1f2b40;
+      --code-bg: #262a31;
+      --pre-bg: #0f1114;
+      --pre-text: #e3e6eb;
+      --ok: #4cc27f;
+      --warn: #e5a540;
+      --err: #ef6f61;
+      --note-bg: #2b2416;
+      --note-border: #7a5c1f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171b;
+    --surface: #1c1f24;
+    --text: #e6e8eb;
+    --muted: #9aa1ac;
+    --border: #2d3138;
+    --accent: #6ea2ff;
+    --accent-soft: #1f2b40;
+    --code-bg: #262a31;
+    --pre-bg: #0f1114;
+    --pre-text: #e3e6eb;
+    --ok: #4cc27f;
+    --warn: #e5a540;
+    --err: #ef6f61;
+    --note-bg: #2b2416;
+    --note-border: #7a5c1f;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 40px;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  nav.toc {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    font-size: 14px;
+  }
+  nav.toc strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin: 4px 0; }
+  nav.toc a { color: var(--text); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); }
+
+  main { min-width: 0; }
+  header.hero { margin-bottom: 32px; }
+  header.hero h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.2; }
+  header.hero p { margin: 0; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  section {
+    margin-bottom: 24px;
+    padding: 24px 28px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  section h2 { margin: 0 0 16px; font-size: 22px; }
+  section h3 { margin: 24px 0 8px; font-size: 17px; }
+  section > :last-child { margin-bottom: 0; }
+  p, ul { margin: 0 0 12px; }
+  li { margin: 4px 0; }
+
+  code {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--code-bg);
+    font: 0.88em/1.5 ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  pre {
+    margin: 0 0 12px;
+    padding: 16px;
+    overflow-x: auto;
+    border-radius: 8px;
+    background: var(--pre-bg);
+    color: var(--pre-text);
+    font: 13.5px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  pre code { padding: 0; background: none; font: inherit; }
+  pre .c { color: #8b93a1; }
+
+  .table-wrap { overflow-x: auto; margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th, td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+
+  .m {
+    display: inline-block;
+    min-width: 62px;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font: 600 12px/1.6 ui-monospace, Consolas, monospace;
+    text-align: center;
+    color: #fff;
+  }
+  .m.get { background: #2f6fd6; }
+  .m.post { background: #1f8a4c; }
+  .m.put { background: #b26a00; }
+  .m.del { background: #c0392b; }
+  .s-ok { color: var(--ok); font-weight: 600; }
+  .s-err { color: var(--err); font-weight: 600; }
+
+  .note {
+    margin: 0 0 12px;
+    padding: 12px 16px;
+    border-left: 4px solid var(--note-border);
+    border-radius: 6px;
+    background: var(--note-bg);
+  }
+
+  .diagram {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    margin: 0 0 16px;
+    flex-wrap: wrap;
+  }
+  .box {
+    flex: 1 1 180px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+  }
+  .box b { display: block; margin-bottom: 4px; }
+  .box small { color: var(--muted); }
+  .box.podman { border-color: var(--accent); background: var(--accent-soft); }
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .arrow span:first-child { font-size: 22px; line-height: 1; }
+  .net-label { margin: -4px 0 12px; color: var(--muted); font-size: 13px; }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps > li { counter-increment: step; position: relative; padding-left: 40px; margin: 0 0 16px; }
+  .steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 26px;
+    text-align: center;
+  }
+
+  footer { color: var(--muted); font-size: 13px; text-align: center; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; gap: 16px; padding: 20px 16px 60px; }
+    nav.toc {
+      position: static;
+      padding: 16px 20px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+    section { padding: 20px 16px; }
+    header.hero h1 { font-size: 26px; }
+    .arrow { flex-basis: 100%; flex-direction: row; gap: 8px; }
+    .arrow span:first-child { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="Contenido">
+  <strong>Contenido</strong>
+  <ol>
+    <li><a href="#objetivo">Objetivo</a></li>
+    <li><a href="#arquitectura">Arquitectura</a></li>
+    <li><a href="#estructura">Estructura</a></li>
+    <li><a href="#api">La API</a></li>
+    <li><a href="#bd">Base de datos</a></li>
+    <li><a href="#entorno">Levantar el entorno</a></li>
+    <li><a href="#pruebas">Las pruebas</a></li>
+    <li><a href="#problemas">Problemas comunes</a></li>
+    <li><a href="#podman">Comandos Podman</a></li>
+    <li><a href="#siguientes">Próximos pasos</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="hero">
+  <h1>Guía QA: Podman + FastAPI + PostgreSQL + Pytest</h1>
+  <p>Qué hace este proyecto, cómo se arma el entorno y cómo se ejecutan las pruebas.</p>
+  <div class="chips">
+    <span class="chip">Python 3.12</span>
+    <span class="chip">FastAPI</span>
+    <span class="chip">PostgreSQL 16</span>
+    <span class="chip">Podman 5</span>
+    <span class="chip">pytest + requests</span>
+  </div>
+</header>
+
+<section id="objetivo">
+  <h2>1. Objetivo del proyecto</h2>
+  <p>Es una prueba de concepto (POC) de <strong>automatización QA de APIs</strong>:</p>
+  <ul>
+    <li>Una <strong>API REST</strong> hecha con FastAPI que hace un CRUD de <code>usuarios</code>.</li>
+    <li>Una base de datos <strong>PostgreSQL 16</strong>.</li>
+    <li>Las dos corren en <strong>contenedores Podman</strong>.</li>
+    <li>Las pruebas son <strong>pruebas de caja negra con pytest + requests</strong>: llaman a la API por HTTP como lo haría un cliente real y validan códigos de estado, contenido de la respuesta y que los datos queden guardados.</li>
+  </ul>
+</section>
+
+<section id="arquitectura">
+  <h2>2. Arquitectura</h2>
+  <div class="diagram" role="img" aria-label="pytest llama por HTTP a la API, que consulta PostgreSQL por SQL">
+    <div class="box">
+      <b>pytest + requests</b>
+      <small>Tu máquina (Windows)<br><code>tests/test_api*.py</code></small>
+    </div>
+    <div class="arrow"><span>→</span><span>HTTP 127.0.0.1:800N</span></div>
+    <div class="box podman">
+      <b>qa-api-vN</b>
+      <small>Contenedor Podman<br>FastAPI en el puerto 8000</small>
+    </div>
+    <div class="arrow"><span>→</span><span>SQL qa-postgres:5432</span></div>
+    <div class="box podman">
+      <b>qa-postgres</b>
+      <small>Contenedor Podman<br>PostgreSQL 16 · volumen <code>postgres_data</code></small>
+    </div>
+  </div>
+  <p class="net-label">Los dos contenedores Podman están en la red <code>qa-network</code>.</p>
+  <ul>
+    <li>La API se conecta a la base usando el <strong>nombre del contenedor</strong> (<code>qa-postgres</code>). Por eso ambos contenedores tienen que estar en la misma red de Podman (<code>qa-network</code>).</li>
+    <li>Desde tu máquina, la base se ve en el puerto <strong>5433</strong> (para psql o DBeaver) y cada versión de la API en un puerto distinto (8000, 8001, ...).</li>
+  </ul>
+</section>
+
+<section id="estructura">
+  <h2>3. Estructura del proyecto</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Archivo</th><th>Qué hace</th></tr></thead>
+    <tbody>
+      <tr><td><code>api/main.py</code></td><td>La API FastAPI: endpoints, modelo <code>UsuarioCrear</code> y conexión a la base</td></tr>
+      <tr><td><code>api/requirements.txt</code></td><td>Dependencias de la API (<code>fastapi</code>, <code>uvicorn</code>, <code>psycopg[binary]</code>, <code>email-validator</code>)</td></tr>
+      <tr><td><code>Containerfile</code></td><td>Receta de la imagen de la API (Python 3.12 slim + uvicorn en el puerto 8000)</td></tr>
+      <tr><td><code>compose.yaml</code></td><td>Levanta <strong>solo</strong> PostgreSQL (<code>qa-postgres</code>, puerto 5433, volumen <code>postgres_data</code>)</td></tr>
+      <tr><td><code>database/</code></td><td>Vacía por ahora. Aquí podría ir el script SQL de creación de la tabla</td></tr>
+      <tr><td><code>tests/</code></td><td>Pruebas pytest, un archivo por funcionalidad (ver <a href="#pruebas">sección 7</a>)</td></tr>
+      <tr><td><code>CLAUDE.md</code></td><td>Guía técnica para Claude Code</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="api">
+  <h2>4. La API</h2>
+  <h3>Configuración</h3>
+  <p>La API lee la conexión a la base desde variables de entorno:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Variable</th><th>Valor por defecto</th></tr></thead>
+    <tbody>
+      <tr><td><code>DB_HOST</code></td><td><code>qa-postgres</code></td></tr>
+      <tr><td><code>DB_PORT</code></td><td><code>5432</code></td></tr>
+      <tr><td><code>DB_NAME</code></td><td><code>qa_database</code></td></tr>
+      <tr><td><code>DB_USER</code></td><td><code>qa_user</code></td></tr>
+      <tr><td><code>DB_PASSWORD</code></td><td><em>vacío: hay que pasarla siempre</em></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Endpoints</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Éxito</th><th>Errores</th></tr></thead>
+    <tbody>
+      <tr><td><span class="m get">GET</span></td><td><code>/health</code></td><td><span class="s-ok">200</span> <code>{"status": "OK"}</code></td><td>—</td></tr>
+      <tr><td><span class="m get">GET</span></td><td><code>/usuarios/{id}</code></td><td><span class="s-ok">200</span> con el usuario</td><td><span class="s-err">404</span> no existe · <span class="s-err">422</span> id no numérico · <span class="s-err">503</span> base caída</td></tr>
+      <tr><td><span class="m post">POST</span></td><td><code>/usuarios</code></td><td><span class="s-ok">201</span> con el usuario creado</td><td><span class="s-err">409</span> email repetido · <span class="s-err">422</span> datos inválidos · <span class="s-err">503</span></td></tr>
+      <tr><td><span class="m put">PUT</span></td><td><code>/usuarios/{id}</code></td><td><span class="s-ok">200</span> con el usuario actualizado</td><td><span class="s-err">404</span> · <span class="s-err">409</span> · <span class="s-err">422</span> · <span class="s-err">503</span></td></tr>
+      <tr><td><span class="m del">DELETE</span></td><td><code>/usuarios/{id}</code></td><td><span class="s-ok">204</span> sin cuerpo</td><td><span class="s-err">404</span> · <span class="s-err">422</span> · <span class="s-err">503</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <p>El cuerpo del POST y del PUT es el modelo <code>UsuarioCrear</code>:</p>
+<pre><code>{ "nombre": "QA Automatizador", "email": "qa@test.com", "activo": true }</code></pre>
+  <ul>
+    <li><code>email</code> es de tipo <code>EmailStr</code>: si no es un email válido, FastAPI responde <strong>422</strong> sin llegar a la base de datos.</li>
+    <li><code>activo</code> es opcional y por defecto vale <code>true</code>.</li>
+    <li>El PUT <strong>reemplaza todos los campos</strong>, así que hay que enviar el objeto completo.</li>
+  </ul>
+  <p>Con la API levantada, la documentación interactiva (Swagger) está en <code>http://127.0.0.1:&lt;puerto&gt;/docs</code>.</p>
+</section>
+
+<section id="bd">
+  <h2>5. La base de datos</h2>
+  <p>La tabla <code>usuarios</code> tiene esta forma:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Columna</th><th>Tipo</th><th>Reglas</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td><code>integer</code></td><td>Clave primaria, se genera sola (secuencia)</td></tr>
+      <tr><td><code>nombre</code></td><td><code>varchar(100)</code></td><td>Obligatorio</td></tr>
+      <tr><td><code>email</code></td><td><code>varchar(150)</code></td><td>Obligatorio y <strong>UNIQUE</strong>: de aquí sale el 409</td></tr>
+      <tr><td><code>activo</code></td><td><code>boolean</code></td><td>Por defecto <code>true</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>El proyecto todavía no tiene un script que la cree. Si arrancas desde cero, créala a mano:</p>
+<pre><code>CREATE TABLE usuarios (
+    id      SERIAL PRIMARY KEY,
+    nombre  VARCHAR(100) NOT NULL,
+    email   VARCHAR(150) NOT NULL UNIQUE,
+    activo  BOOLEAN DEFAULT TRUE
+);
+
+<span class="c">-- Usuario semilla que esperan test_api.py y test_api_postgres.py</span>
+INSERT INTO usuarios (nombre, email, activo)
+VALUES ('Usuario QA', 'qa@test.com', TRUE);</code></pre>
+  <p class="note">El usuario con <code>id = 1</code> es un <strong>dato fijo de prueba</strong>. Si un test lo borra o lo modifica, fallan <code>test_api.py</code> y <code>test_api_postgres.py</code>.</p>
+</section>
+
+<section id="entorno">
+  <h2>6. Levantar el entorno paso a paso</h2>
+  <p>Todos los comandos se ejecutan desde la carpeta del proyecto.</p>
+  <ol class="steps">
+    <li>
+      <p><strong>Levantar PostgreSQL</strong></p>
+<pre><code>podman compose up -d</code></pre>
+    </li>
+    <li>
+      <p><strong>Crear la red compartida y conectar la base a ella</strong> (solo la primera vez)</p>
+<pre><code>podman network create qa-network
+podman network connect qa-network qa-postgres</code></pre>
+    </li>
+    <li>
+      <p><strong>Crear la tabla y el usuario semilla</strong> (solo la primera vez; ver <a href="#bd">sección 5</a>)</p>
+<pre><code>podman exec -it qa-postgres psql -U qa_user -d qa_database</code></pre>
+    </li>
+    <li>
+      <p><strong>Construir la imagen de la API</strong>. Sube el tag cada vez que cambies <code>main.py</code>.</p>
+<pre><code>podman build -t poc-qa-api:1.5 -f Containerfile .</code></pre>
+    </li>
+    <li>
+      <p><strong>Ejecutar la API</strong> en la red compartida, publicada en un puerto de tu máquina</p>
+<pre><code>podman run -d --name qa-api-v5 --network qa-network \
+  -p 8004:8000 -e DB_PASSWORD=qa_password_local poc-qa-api:1.5</code></pre>
+    </li>
+    <li>
+      <p><strong>Comprobar que responde</strong></p>
+<pre><code>curl http://127.0.0.1:8004/health</code></pre>
+    </li>
+  </ol>
+
+  <h3>Versiones de la API que hay ahora</h3>
+  <p>Cada paso del curso tiene su propia imagen y su propio contenedor, así cada archivo de tests apunta a la versión que le corresponde:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Contenedor</th><th>Imagen</th><th>Puerto</th><th>Archivo de tests</th></tr></thead>
+    <tbody>
+      <tr><td><code>qa-api</code></td><td><code>poc-qa-api:1.0</code></td><td>8000</td><td><code>test_api.py</code></td></tr>
+      <tr><td><code>qa-api-v2</code></td><td><code>poc-qa-api:1.2</code></td><td>8001</td><td><code>test_api_postgres.py</code></td></tr>
+      <tr><td><code>qa-api-v3</code></td><td><code>poc-qa-api:1.3</code></td><td>8002</td><td><code>test_api_post.py</code></td></tr>
+      <tr><td><code>qa-api-v4</code></td><td><code>poc-qa-api:1.4</code></td><td>8003</td><td><code>test_api_put.py</code></td></tr>
+      <tr><td><code>qa-api-v5</code></td><td><code>poc-qa-api:1.5</code></td><td>8004</td><td><em>pendiente: tests de DELETE</em></td></tr>
+    </tbody>
+  </table></div>
+  <p class="note"><code>qa-api</code> (v1) no está en <code>qa-network</code>, pero igual responde <code>GET /usuarios/1</code>: es una imagen anterior a la conexión con PostgreSQL. Si la reconstruyes con el <code>main.py</code> actual, también tendrá que estar en <code>qa-network</code>.</p>
+</section>
+
+<section id="pruebas">
+  <h2>7. Las pruebas</h2>
+  <h3>Preparación (una sola vez)</h3>
+<pre><code>pip install pytest requests</code></pre>
+
+  <h3>Qué valida cada archivo</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Archivo</th><th>Puerto</th><th>Qué valida</th></tr></thead>
+    <tbody>
+      <tr><td><code>test_api.py</code></td><td>8000</td><td>Health check, consulta del usuario 1, id inválido (422), ruta inexistente (404)</td></tr>
+      <tr><td><code>test_api_postgres.py</code></td><td>8001</td><td>GET contra la base real: usuario existente (200), inexistente (404), id inválido (422)</td></tr>
+      <tr><td><code>test_api_post.py</code></td><td>8002</td><td>Creación (201) con verificación por GET, email duplicado (409), email inválido (422)</td></tr>
+      <tr><td><code>test_api_put.py</code></td><td>8003</td><td>Actualización (200) con verificación por GET, inexistente (404), email duplicado (409), 3 emails inválidos (422)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Cómo se ejecutan</h3>
+<pre><code><span class="c"># todo</span>
+pytest tests/
+
+<span class="c"># un archivo, con detalle</span>
+pytest tests/test_api_put.py -v
+
+<span class="c"># un solo test</span>
+pytest tests/test_api_put.py::test_actualizar_usuario_inexistente
+
+<span class="c"># un caso de un parametrize</span>
+pytest "tests/test_api_put.py::test_actualizar_usuario_email_invalido[sin-arroba.com]"
+
+<span class="c"># tests cuyo nombre contenga "duplicado"</span>
+pytest tests/ -k duplicado</code></pre>
+
+  <h3>Técnicas QA que se usan</h3>
+  <ul>
+    <li><strong>Caja negra</strong>: los tests no importan código de la API, solo usan HTTP.</li>
+    <li><strong>Partición de equivalencia y valores inválidos</strong>: con <code>@pytest.mark.parametrize</code> se prueban ids (<code>"abc"</code>, <code>"1.5"</code>, <code>"null"</code>) y emails (<code>"correo-invalido"</code>, <code>"sin-arroba.com"</code>, <code>""</code>) inválidos.</li>
+    <li><strong>Datos únicos por ejecución</strong>: los emails llevan <code>uuid.uuid4().hex</code>. Como los datos se guardan en el volumen, un email fijo daría 409 desde la segunda ejecución.</li>
+    <li><strong>Verificar que se guardó</strong>: después de un POST o PUT, un GET confirma que el cambio llegó a la base.</li>
+    <li><strong>Preparar los datos dentro del test</strong>: <code>test_api_put.py</code> usa el helper <code>crear_usuario()</code> para crear con POST el usuario que va a modificar, en vez de depender de datos fijos.</li>
+  </ul>
+</section>
+
+<section id="problemas">
+  <h2>8. Problemas comunes</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Síntoma</th><th>Causa probable</th><th>Qué hacer</th></tr></thead>
+    <tbody>
+      <tr><td><code>ConnectionError</code> / <code>Connection refused</code> en pytest</td><td>No hay ninguna API en ese puerto</td><td><code>podman ps</code> y revisar el puerto del contenedor</td></tr>
+      <tr><td>503 <code>Base de datos no disponible</code></td><td>La API no llega a <code>qa-postgres</code>: falta la red, falta <code>DB_PASSWORD</code> o la base está apagada</td><td>Revisar <code>--network qa-network</code> y <code>-e DB_PASSWORD=...</code>; ver <code>podman logs &lt;contenedor&gt;</code></td></tr>
+      <tr><td>El test espera 409 pero recibe 201</td><td>La tabla no tiene <code>UNIQUE</code> en <code>email</code></td><td><code>ALTER TABLE usuarios ADD CONSTRAINT usuarios_email_key UNIQUE (email);</code></td></tr>
+      <tr><td>Falla un test del usuario 1</td><td>El usuario semilla se borró o cambió</td><td>Volver a insertarlo (<a href="#bd">sección 5</a>)</td></tr>
+      <tr><td>Un cambio en <code>main.py</code> no se ve</td><td>El contenedor usa la imagen anterior</td><td>Reconstruir la imagen con un tag nuevo y levantar otro contenedor</td></tr>
+      <tr><td>La API no arranca: <code>ImportError: email-validator</code></td><td>La imagen se construyó antes de agregar la dependencia</td><td>Reconstruir la imagen</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="podman">
+  <h2>9. Comandos útiles de Podman</h2>
+<pre><code><span class="c"># contenedores corriendo</span>
+podman ps
+
+<span class="c"># logs de la API</span>
+podman logs -f qa-api-v5
+
+<span class="c"># consola SQL</span>
+podman exec -it qa-postgres psql -U qa_user -d qa_database
+
+<span class="c"># eliminar un contenedor</span>
+podman stop qa-api-v5 &amp;&amp; podman rm qa-api-v5
+
+<span class="c"># apagar Postgres (los datos se mantienen)</span>
+podman compose down
+
+<span class="c"># apagar Postgres y BORRAR los datos</span>
+podman compose down -v</code></pre>
+</section>
+
+<section id="siguientes">
+  <h2>10. Próximos pasos</h2>
+  <ul>
+    <li><code>tests/test_api_delete.py</code> contra el puerto 8004: borrado exitoso (204 y luego GET da 404), borrar un usuario inexistente (404) e id inválido (422).</li>
+    <li>Guardar el <code>CREATE TABLE</code> y el usuario semilla en <code>database/</code> para que el entorno se pueda recrear.</li>
+    <li>Llevar <code>BASE_URL</code> a una variable de entorno o a un <code>conftest.py</code> para no repetirla en cada archivo de tests.</li>
+  </ul>
+</section>
+
+<footer>poc_podman_python_pytest · guía QA</footer>
+
+</main>
+</div>
+</body>
+</html>
