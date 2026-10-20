@@ -427,7 +427,7 @@ podman network connect qa-network qa-postgres</code></pre>
       <tr><td><code>qa-api-v2</code></td><td><code>poc-qa-api:1.2</code></td><td>8001</td><td><code>test_api_postgres.py</code></td></tr>
       <tr><td><code>qa-api-v3</code></td><td><code>poc-qa-api:1.3</code></td><td>8002</td><td><code>test_api_post.py</code></td></tr>
       <tr><td><code>qa-api-v4</code></td><td><code>poc-qa-api:1.4</code></td><td>8003</td><td><code>test_api_put.py</code></td></tr>
-      <tr><td><code>qa-api-v5</code></td><td><code>poc-qa-api:1.5</code></td><td>8004</td><td><em>pendiente: tests de DELETE</em></td></tr>
+      <tr><td><code>qa-api-v5</code></td><td><code>poc-qa-api:1.5</code></td><td>8004</td><td><code>test_crud_e2e.py</code></td></tr>
     </tbody>
   </table></div>
   <p class="note"><code>qa-api</code> (v1) no está en <code>qa-network</code>, pero igual responde <code>GET /usuarios/1</code>: es una imagen anterior a la conexión con PostgreSQL. Si la reconstruyes con el <code>main.py</code> actual, también tendrá que estar en <code>qa-network</code>.</p>
@@ -436,7 +436,10 @@ podman network connect qa-network qa-postgres</code></pre>
 <section id="pruebas">
   <h2>7. Las pruebas</h2>
   <h3>Preparación (una sola vez)</h3>
-<pre><code>pip install pytest requests</code></pre>
+<pre><code>pip install pytest requests
+
+<span class="c"># solo para test_calidad_datos.py</span>
+pip install pandas pandera "psycopg[binary]"</code></pre>
 
   <h3>Qué valida cada archivo</h3>
   <div class="table-wrap"><table>
@@ -446,6 +449,8 @@ podman network connect qa-network qa-postgres</code></pre>
       <tr><td><code>test_api_postgres.py</code></td><td>8001</td><td>GET contra la base real: usuario existente (200), inexistente (404), id inválido (422)</td></tr>
       <tr><td><code>test_api_post.py</code></td><td>8002</td><td>Creación (201) con verificación por GET, email duplicado (409), email inválido (422)</td></tr>
       <tr><td><code>test_api_put.py</code></td><td>8003</td><td>Actualización (200) con verificación por GET, inexistente (404), email duplicado (409), 3 emails inválidos (422)</td></tr>
+      <tr><td><code>test_crud_e2e.py</code></td><td>8004</td><td>Flujo completo de punta a punta: crear (201) → consultar → actualizar (200) → consultar → eliminar (204) → consultar (404)</td></tr>
+      <tr><td><code>test_calidad_datos.py</code></td><td>5433 (base)</td><td>Calidad de datos de <strong>toda</strong> la tabla <code>usuarios</code> con pandera: ids positivos y únicos, nombres de al menos 2 caracteres, emails válidos y únicos, <code>activo</code> sin nulos, sin columnas extra</td></tr>
     </tbody>
   </table></div>
 
@@ -472,6 +477,8 @@ pytest tests/ -k duplicado</code></pre>
     <li><strong>Datos únicos por ejecución</strong>: los emails llevan <code>uuid.uuid4().hex</code>. Como los datos se guardan en el volumen, un email fijo daría 409 desde la segunda ejecución.</li>
     <li><strong>Verificar que se guardó</strong>: después de un POST o PUT, un GET confirma que el cambio llegó a la base.</li>
     <li><strong>Preparar los datos dentro del test</strong>: <code>test_api_put.py</code> usa el helper <code>crear_usuario()</code> para crear con POST el usuario que va a modificar, en vez de depender de datos fijos.</li>
+    <li><strong>Prueba de punta a punta (E2E) con limpieza garantizada</strong>: <code>test_crud_e2e.py</code> borra el usuario dentro de un <code>finally</code>, así no deja datos de prueba aunque falle una validación intermedia.</li>
+    <li><strong>Calidad de datos</strong>: <code>test_calidad_datos.py</code> no usa la API. Lee la tabla directamente con <code>psycopg</code>, la carga en un DataFrame de pandas y la valida contra un esquema de pandera. Con <code>lazy=True</code> muestra todos los errores juntos. Como revisa toda la tabla, detecta datos incorrectos que hayan dejado otros tests o inserciones manuales.</li>
   </ul>
 </section>
 
@@ -514,7 +521,7 @@ podman compose down -v</code></pre>
 <section id="siguientes">
   <h2>10. Próximos pasos</h2>
   <ul>
-    <li><code>tests/test_api_delete.py</code> contra el puerto 8004: borrado exitoso (204 y luego GET da 404), borrar un usuario inexistente (404) e id inválido (422).</li>
+    <li>Tests específicos de DELETE para los casos que el E2E no cubre: borrar un usuario inexistente (404) e id inválido (422).</li>
     <li>Guardar el <code>CREATE TABLE</code> y el usuario semilla en <code>database/</code> para que el entorno se pueda recrear.</li>
     <li>Llevar <code>BASE_URL</code> a una variable de entorno o a un <code>conftest.py</code> para no repetirla en cada archivo de tests.</li>
   </ul>

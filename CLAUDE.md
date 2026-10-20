@@ -19,8 +19,10 @@ Note: there is no git repo scoped to this folder. The enclosing git repository i
   - `test_api_postgres.py` → `http://127.0.0.1:8001`
   - `test_api_post.py` → `http://127.0.0.1:8002`. These tests use a `uuid` in the email so repeated runs don't collide on the UNIQUE email.
   - `test_api_put.py` → `http://127.0.0.1:8003`. Its `crear_usuario()` helper creates a fresh user through POST before each PUT.
+  - `test_crud_e2e.py` → `http://127.0.0.1:8004`. A single test walks the full lifecycle (POST → GET → PUT → GET → DELETE → GET 404). The DELETE runs in a `finally`, so the user is removed even if an earlier assertion fails.
+  - `test_calidad_datos.py` is the exception: it does not call the API. It reads the `usuarios` table straight from Postgres (`127.0.0.1:5433`, same `DB_*` env vars with host-side defaults) into a pandas DataFrame and validates it with a strict pandera schema: positive unique `id`, `nombre` at least 2 characters, unique email matching a regex, and non-null `activo`. It checks **every row** in the table, so bad data left behind by other tests makes it fail. It needs `pandas`, `pandera` and `psycopg[binary]` on the host.
 
-  So the API is expected to be published on 8000–8003 when running the matching suite. `test_api.py::test_consultar_usuario` also needs the DB.
+  So the API is expected to be published on 8000–8004 when running the matching suite. `test_api.py::test_consultar_usuario` also needs the DB.
 
 ## Commands
 
