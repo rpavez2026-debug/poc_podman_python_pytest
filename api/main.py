@@ -149,3 +149,32 @@ def actualizar_usuario(usuario_id: int, usuario: UsuarioCrear):
             status_code=503,
             detail="Base de datos no disponible"
         )
+
+
+@app.delete("/usuarios/{usuario_id}", status_code=204)
+def eliminar_usuario(usuario_id: int):
+    try:
+        with psycopg.connect(**DB_CONFIG) as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM usuarios
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (usuario_id,)
+                )
+
+                eliminado = cursor.fetchone()
+
+        if eliminado is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Usuario no encontrado"
+            )
+
+    except psycopg.Error:
+        raise HTTPException(
+            status_code=503,
+            detail="Base de datos no disponible"
+        )

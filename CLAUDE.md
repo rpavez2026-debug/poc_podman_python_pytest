@@ -10,7 +10,7 @@ Note: there is no git repo scoped to this folder. The enclosing git repository i
 
 ## Architecture
 
-- **API** (`api/`): a single FastAPI app. `/health` is static; `/usuarios/{usuario_id}` opens a new `psycopg` (v3) connection per request using `DB_CONFIG`, built from the env vars `DB_HOST` (default `qa-postgres`), `DB_PORT` (5432), `DB_NAME` (`qa_database`), `DB_USER` (`qa_user`) and `DB_PASSWORD`. `POST /usuarios` takes a `UsuarioCrear` body (`email` is an `EmailStr`, which needs `email-validator`) and returns 201 with the new id. If the email is already registered it returns 409, which needs a UNIQUE constraint on `usuarios.email`. `PUT /usuarios/{usuario_id}` takes the same body and replaces all fields. It returns 200 with the updated row, 404 if the id doesn't exist, and 409 on a duplicate email. Error contract: a non-int id gives a 422 from FastAPI validation, a missing row gives a 404 `"Usuario no encontrado"`, and any `psycopg.Error` gives a 503 `"Base de datos no disponible"`.
+- **API** (`api/`): a single FastAPI app. `/health` is static; `/usuarios/{usuario_id}` opens a new `psycopg` (v3) connection per request using `DB_CONFIG`, built from the env vars `DB_HOST` (default `qa-postgres`), `DB_PORT` (5432), `DB_NAME` (`qa_database`), `DB_USER` (`qa_user`) and `DB_PASSWORD`. `POST /usuarios` takes a `UsuarioCrear` body (`email` is an `EmailStr`, which needs `email-validator`) and returns 201 with the new id. If the email is already registered it returns 409, which needs a UNIQUE constraint on `usuarios.email`. `PUT /usuarios/{usuario_id}` takes the same body and replaces all fields. It returns 200 with the updated row, 404 if the id doesn't exist, and 409 on a duplicate email. `DELETE /usuarios/{usuario_id}` returns 204 with no body, or 404 if the id doesn't exist. Error contract: a non-int id gives a 422 from FastAPI validation, a missing row gives a 404 `"Usuario no encontrado"`, and any `psycopg.Error` gives a 503 `"Base de datos no disponible"`.
 - **Containerfile**: builds the API image (python:3.12-slim, uvicorn on port 8000). Only `api/` is copied into the image.
 - **compose.yaml**: defines **only** the Postgres service (container `qa-postgres`, host port **5433** → 5432, credentials `qa_user` / `qa_password_local` / `qa_database`, named volume `postgres_data`). The API is not in compose. To reach `qa-postgres` by name, run the API container on the compose network. A host-run API needs `DB_HOST=127.0.0.1 DB_PORT=5433`.
 - **Database schema/seed**: `database/` is empty. Nothing creates the `usuarios` table (`id, nombre, email, activo`), so set it up by hand. The tests expect row `id=1` to be `nombre='Usuario QA'`, `email='qa@test.com'`, `activo=true`, and id `999999` must not exist.
@@ -18,8 +18,9 @@ Note: there is no git repo scoped to this folder. The enclosing git repository i
   - `test_api.py` → `http://127.0.0.1:8000`
   - `test_api_postgres.py` → `http://127.0.0.1:8001`
   - `test_api_post.py` → `http://127.0.0.1:8002`. These tests use a `uuid` in the email so repeated runs don't collide on the UNIQUE email.
+  - `test_api_put.py` → `http://127.0.0.1:8003`. Its `crear_usuario()` helper creates a fresh user through POST before each PUT.
 
-  So the API is expected to be published on 8000, 8001 and/or 8002 when running the matching suite. `test_api.py::test_consultar_usuario` also needs the DB.
+  So the API is expected to be published on 8000–8003 when running the matching suite. `test_api.py::test_consultar_usuario` also needs the DB.
 
 ## Commands
 
