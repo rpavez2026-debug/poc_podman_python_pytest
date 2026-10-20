@@ -1,0 +1,16 @@
+
+services:
+  postgres:
+    image: docker.io/library/postgres:16
+    container_name: qa-postgres
+    environment:
+      POSTGRES_USER: qa_user
+      POSTGRES_PASSWORD: qa_password_local
+      POSTGRES_DB: qa_database
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
