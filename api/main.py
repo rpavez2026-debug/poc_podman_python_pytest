@@ -100,3 +100,52 @@ def crear_usuario(usuario: UsuarioCrear):
             status_code=503,
             detail="Base de datos no disponible"
         )
+
+
+@app.put("/usuarios/{usuario_id}")
+def actualizar_usuario(usuario_id: int, usuario: UsuarioCrear):
+    try:
+        with psycopg.connect(**DB_CONFIG) as conexion:
+            with conexion.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE usuarios
+                    SET nombre = %s,
+                        email = %s,
+                        activo = %s
+                    WHERE id = %s
+                    RETURNING id, nombre, email, activo
+                    """,
+                    (
+                        usuario.nombre,
+                        usuario.email,
+                        usuario.activo,
+                        usuario_id
+                    )
+                )
+
+                resultado = cursor.fetchone()
+
+        if resultado is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Usuario no encontrado"
+            )
+
+        return {
+            "id": resultado[0],
+            "nombre": resultado[1],
+            "email": resultado[2],
+            "activo": resultado[3]
+        }
+
+    except psycopg.errors.UniqueViolation:
+        raise HTTPException(
+            status_code=409,
+            detail="El email ya está registrado"
+        )
+    except psycopg.Error:
+        raise HTTPException(
+            status_code=503,
+            detail="Base de datos no disponible"
+        )
