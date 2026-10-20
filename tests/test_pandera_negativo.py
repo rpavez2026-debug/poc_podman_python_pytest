@@ -4,7 +4,7 @@ import pytest
 import pandera.pandas as pa
 
 from pandera.errors import SchemaErrors
-from reporte_pandera import generar_reporte_pandera
+from generar_reporte_pandera import generar_reporte_pandera
 from test_calidad_datos import schema_usuarios
 
 
